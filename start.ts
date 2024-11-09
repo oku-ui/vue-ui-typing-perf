@@ -4,6 +4,8 @@ import { execaCommand } from 'execa';
 import * as fs from 'fs';
 import * as assert from 'assert';
 
+const [libraryName, libraryVersion, libraryDeps] = process.argv.slice(2) as [string, string, string[]];
+
 const sample = 1; // less for faster, bigger for smooth numbers
 
 (async () => {
@@ -11,55 +13,88 @@ const sample = 1; // less for faster, bigger for smooth numbers
     const context = await setup(path.join(__dirname, 'servers'), {
         'v2.1.6': { npm: '@vue/language-server@2.1.6', bin: './bin/vue-language-server.js' },
     });
-    const libraries: {
-        name: string;
-        deps: string[];
-        version: string;
-    }[] = [
-            { name: 'vanilla', deps: ['vue'], version: 'latest' },
-            { name: 'ant-design-vue', deps: ['ant-design-vue'], version: 'latest' },
-            { name: 'anu-vue', deps: ['anu-vue'], version: 'latest' },
-            { name: 'bootstrap-vue-next', deps: ['bootstrap-vue-next'], version: 'latest' },
-            { name: 'element-plus', deps: ['element-plus'], version: 'latest' },
-            { name: 'naive-ui', deps: ['naive-ui'], version: 'latest' },
-            {
-                name: 'oku-ui', deps: [
-                    '@oku-ui/arrow',
-                    '@oku-ui/aspect-ratio',
-                    '@oku-ui/avatar',
-                    '@oku-ui/checkbox',
-                    '@oku-ui/collapsible',
-                    '@oku-ui/label',
-                    '@oku-ui/popper',
-                    '@oku-ui/presence',
-                    '@oku-ui/progress',
-                    '@oku-ui/separator',
-                    // '@oku-ui/switch',
-                    '@oku-ui/toggle',
-                    // '@oku-ui/visually-hidden',
-                ], version: 'latest'
-            },
-            { name: 'quasar', deps: ['quasar'], version: 'latest' },
-            { name: 'radix-vue', deps: ['radix-vue'], version: 'latest' },
-            { name: 'vuetify', deps: ['vuetify'], version: 'latest' },
-            { name: 'vant', deps: ['vant'], version: 'latest' },
+    // const libraries: {
+    //     name: string;
+    //     deps: string[];
+    //     version: string;
+    // }[] = [
+    //         { name: 'vanilla', deps: ['vue'], version: 'latest' },
+    //         { name: 'ant-design-vue', deps: ['ant-design-vue'], version: 'latest' },
+    //         { name: 'anu-vue', deps: ['anu-vue'], version: 'latest' },
+    //         { name: 'bootstrap-vue-next', deps: ['bootstrap-vue-next'], version: 'latest' },
+    //         { name: 'element-plus', deps: ['element-plus'], version: 'latest' },
+    //         { name: 'naive-ui', deps: ['naive-ui'], version: 'latest' },
+    //         { name: 'oku-ui', deps: ['@oku-ui/primitives'], version: 'latest' },
+    //         { name: 'quasar', deps: ['quasar'], version: 'latest' },
+    //         { name: 'radix-vue', deps: ['radix-vue'], version: 'latest' },
+    //         { name: 'vuetify', deps: ['vuetify'], version: 'latest' },
+    //         { name: 'vant', deps: ['vant'], version: 'latest' },
 
-            // NO TS
-            // { name: 'primevue', deps: ['primevue'], version: 'latest' },
-            // { name: 'keen-ui', deps: ['keen-ui'], version: 'latest' },
-        ];
+    //         // NO TS
+    //         // { name: 'primevue', deps: ['primevue'], version: 'latest' },
+    //         // { name: 'keen-ui', deps: ['keen-ui'], version: 'latest' },
+    //     ];
 
     const pathCompletionTsvRows: (string | number)[][] = [['']];
     const autoImportTsvRows: (string | number)[][] = [['']];
     const setupContextTsvRows: (string | number)[][] = [['']];
+
+
+    
 
     const tempPath = path.join(__dirname, 'temp');
     if (!fs.existsSync(tempPath)) {
         fs.mkdirSync(tempPath);
     }
 
-    for (const library of libraries) {
+    const pathCompletionTsvPath = path.join(tempPath, 'path_completion.tsv');
+    const autoImportTsvPath = path.join(tempPath, 'global_completion.tsv');
+    const setupContextTsvPath = path.join(tempPath, 'setup_function_completion.tsv');
 
+        // readfile and push to array
+  
+
+    try {
+        const pathCompletionTsv = fs.readFileSync(pathCompletionTsvPath, 'utf-8');
+        const autoImportTsv = fs.readFileSync(autoImportTsvPath, 'utf-8');
+        const setupContextTsv = fs.readFileSync(setupContextTsvPath, 'utf-8');
+        
+        if (fs.existsSync(pathCompletionTsvPath)) {
+
+    pathCompletionTsv.split('\n').forEach((line, index) => {
+        if (index === 0) {
+            pathCompletionTsvRows[0] = line.split('\t');
+        } else {
+            pathCompletionTsvRows.push(line.split('\t'));
+        }
+    });
+
+    autoImportTsv.split('\n').forEach((line, index) => {
+        if (index === 0) {
+            autoImportTsvRows[0] = line.split('\t');
+        } else {
+            autoImportTsvRows.push(line.split('\t'));
+        }
+    });
+
+    setupContextTsv.split('\n').forEach((line, index) => {
+        if (index === 0) {
+            setupContextTsvRows[0] = line.split('\t');
+        } else {
+            setupContextTsvRows.push(line.split('\t'));
+        }
+    });
+
+}
+    } catch (error) {
+        
+    }
+    const library = { name: libraryName, deps: libraryDeps, version: libraryVersion };
+
+    if (typeof libraryDeps === 'string') {
+        library.deps = JSON.parse(library.deps.replace(/'/g, '"'));
+    }
+    
         console.log(library.name + '...');
 
         pathCompletionTsvRows[0].push(library.name);
@@ -73,12 +108,14 @@ const sample = 1; // less for faster, bigger for smooth numbers
         if (!fs.existsSync(folder)) {
             fs.mkdirSync(folder);
             const dependencies = { vue: 'latest' };
+
+         
             for (const dep of library.deps) {
                 dependencies[dep] = library.version;
             }
             fs.writeFileSync(path.join(folder, 'package.json'), JSON.stringify({ dependencies }));
             fs.writeFileSync(path.join(folder, 'tsconfig.json'), JSON.stringify({}));
-            await execaCommand(`pnpm i`, { cwd: folder }).pipeStdout?.(process.stdout);
+            await execaCommand(`pnpm i`, { cwd: folder })
         }
 
         /**
@@ -269,11 +306,12 @@ const sample = 1; // less for faster, bigger for smooth numbers
             }
             setupContextTsvRows[j + 1].push(times_3[j])
         }
-    }
 
-    saveTsv(path.join(tempPath, 'path_completion.tsv'), pathCompletionTsvRows.map(arr => arr.join('\t')).join('\n'));
-    saveTsv(path.join(tempPath, 'global_completion.tsv'), autoImportTsvRows.map(arr => arr.join('\t')).join('\n'));
-    saveTsv(path.join(tempPath, 'setup_function_completion.tsv'), setupContextTsvRows.map(arr => arr.join('\t')).join('\n'));
+
+
+    saveTsv(pathCompletionTsvPath, pathCompletionTsvRows.map(arr => arr.join('\t')).join('\n'));
+    saveTsv(autoImportTsvPath, autoImportTsvRows.map(arr => arr.join('\t')).join('\n'));
+    saveTsv(setupContextTsvPath, setupContextTsvRows.map(arr => arr.join('\t')).join('\n'));
 })();
 
 function saveTsv(path: string, data: string) {
